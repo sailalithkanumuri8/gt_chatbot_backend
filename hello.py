@@ -14,7 +14,7 @@ db = client["files"]
 collection = db["clubs"]
 
 def get_clubs_dataframe():
-    """Fetch data from MongoDB and return as pandas DataFrame"""
+    """Fetch data from MongoDB and return pandas DataFrame"""
     clubs_data = list(collection.find({}, {'_id': 0}))
     return pd.DataFrame(clubs_data)
 
