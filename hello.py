@@ -9,8 +9,7 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# MongoDB connection
-client = MongoClient(os.getenv('MONGODB_CLIENT'))
+client = MongoClient(os.getenv('MONGODB_CLIENT'), tlsAllowInvalidCertificates=True)
 db = client["files"]
 collection = db["clubs"]
 
@@ -37,4 +36,4 @@ def get_club_by_name(club_name):
 # Implement a POST endpoint to create a club
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=8000)

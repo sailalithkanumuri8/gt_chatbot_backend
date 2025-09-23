@@ -6,8 +6,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Use MongoDB connection string from .env
-client = MongoClient(os.getenv('MONGODB_CLIENT'))
+client = MongoClient(os.getenv('MONGODB_CLIENT'), tlsAllowInvalidCertificates=True)
 db = client["files"]
 collection = db["clubs"]
 
