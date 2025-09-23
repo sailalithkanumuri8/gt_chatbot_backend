@@ -10,24 +10,6 @@ load_dotenv()
 app = Flask(__name__)
 
 client = MongoClient(os.getenv('MONGODB_CLIENT'), tlsAllowInvalidCertificates=True)
-db = client["files"]
-collection = db["clubs"]
-
-def get_clubs_dataframe():
-    """Fetch data from MongoDB and return pandas DataFrame"""
-    clubs_data = list(collection.find({}, {'_id': 0}))
-    return pd.DataFrame(clubs_data)
-
-@app.route('/clubs', methods=['GET'])
-def get_clubs():
-    df = get_clubs_dataframe()
-    return jsonify(df.to_dict('records'))
-
-@app.route('/clubs/<club_name>', methods=['GET'])
-def get_club_by_name(club_name):
-    df = get_clubs_dataframe()
-    club_data = df[df['club_name'].str.lower() == club_name.lower()]
-    return jsonify(club_data.to_dict('records'))
 
 
 # TODO
