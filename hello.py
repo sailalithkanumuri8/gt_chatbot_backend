@@ -1,5 +1,10 @@
 from flask import Flask, jsonify
 import pandas as pd
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
 
