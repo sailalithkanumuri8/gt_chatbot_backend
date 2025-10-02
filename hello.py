@@ -10,12 +10,12 @@ load_dotenv()
 
 app = Flask(__name__)
 
-client = MongoClient(os.getenv('MONGODB_CLIENT'), tlsAllowInvalidCertificates=True)
-db = client["files"]
-collection = db["clubs"]
+# LIVE CODE TASK 1: Database Connection (5 minutes)
+# TODO: Add database connection code here
 
-# Configure Gemini API
-genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+
+# LIVE CODE TASK 2: AI API Setup (3 minutes)
+# TODO: Add AI API configuration here
 
 @app.route('/clubs', methods=['GET'])
 def get_all_clubs():
@@ -162,33 +162,16 @@ def chat():
                 'error': 'No message provided'
             }), 400
 
-        # Get all clubs from database for context
-        clubs = list(collection.find({}, {'_id': 0}))
-        clubs_context = "\n".join([
-            f"Club: {club['club_name']} - {club['description']} - Majors: {club['majors']}"
-            for club in clubs[:20]  # Limit to first 20 clubs for context
-        ])
+        # LIVE CODE TASK 3: Data Retrieval for AI Context (5 minutes)
+        # TODO: Get clubs from database and format for AI
 
-        # Create system prompt with club information
-        system_prompt = f"""You are a helpful assistant for Georgia Tech students looking for clubs to join.
 
-Here are some available clubs at Georgia Tech:
-
-{clubs_context}
-
-Please help students find clubs that match their interests, majors, or goals. Be friendly and informative.
-If a student asks about a specific club, provide details about it. If they're looking for clubs in a particular area,
-suggest relevant clubs from the list above."""
-
-        # Initialize Gemini model
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        # LIVE CODE TASK 4: AI Prompt Engineering (7 minutes)
+        # TODO: Create system prompt with club information
         
-        # Create the full prompt
-        full_prompt = f"{system_prompt}\n\nUser: {user_message}\n\nAssistant:"
-        
-        # Call Gemini API
-        response = model.generate_content(full_prompt)
-        bot_response = response.text
+
+        # LIVE CODE TASK 5: AI API Call (5 minutes)
+        # TODO: Call Gemini API and get response
 
         return jsonify({
             'success': True,
@@ -202,4 +185,4 @@ suggest relevant clubs from the list above."""
         }), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8001)
+    app.run(debug=True, port=8002)

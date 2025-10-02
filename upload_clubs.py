@@ -18,4 +18,3 @@ collection.insert_many(clubs_data)
 print(f"Uploaded {len(clubs_data)} clubs to MongoDB")
 
 client.close()
-
