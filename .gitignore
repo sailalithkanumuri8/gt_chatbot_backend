@@ -44,3 +44,4 @@ Thumbs.db
 # Database
 *.db
 *.sqlite3
+answers.py
