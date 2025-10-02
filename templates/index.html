@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GT Club Chatbot</title>
+    <!-- Google Fonts - EB Garamond -->
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -12,54 +14,90 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'EB Garamond', serif;
             height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
+            overflow: hidden;
+        }
+
+        #vanta-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
         }
 
         .chat-container {
             width: 90%;
             max-width: 800px;
             height: 80vh;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 25px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .chat-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #3453f0 0%, #2f80e1 50%, #35bde1 100%);
             color: white;
-            padding: 20px;
+            padding: 25px;
             text-align: center;
+            position: relative;
         }
 
+        .header-content {
+            position: relative;
+            z-index: 1;
+        }
+
+
         .chat-header h1 {
-            font-size: 24px;
-            margin-bottom: 5px;
+            font-family: 'EB Garamond', serif;
+            font-size: 28px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
 
         .chat-header p {
-            opacity: 0.9;
-            font-size: 14px;
+            font-family: 'EB Garamond', serif;
+            opacity: 0.95;
+            font-size: 16px;
+            font-weight: 400;
+            font-style: italic;
         }
 
         .chat-messages {
             flex: 1;
-            padding: 20px;
+            padding: 25px;
             overflow-y: auto;
-            background: #f8f9fa;
+            background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
         }
 
         .message {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             display: flex;
             align-items: flex-start;
+            animation: fadeInUp 0.3s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .message.user {
@@ -71,85 +109,143 @@
         }
 
         .message-content {
-            max-width: 70%;
-            padding: 12px 16px;
-            border-radius: 18px;
+            max-width: 75%;
+            padding: 15px 20px;
+            border-radius: 20px;
             word-wrap: break-word;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            font-family: 'EB Garamond', serif;
+            font-size: 16px;
+            line-height: 1.5;
         }
 
         .message.user .message-content {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #3453f0 0%, #2f80e1 50%, #35bde1 100%);
             color: white;
-            border-bottom-right-radius: 5px;
+            border-bottom-right-radius: 8px;
         }
 
         .message.bot .message-content {
-            background: white;
-            color: #333;
-            border: 1px solid #e1e5e9;
-            border-bottom-left-radius: 5px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #2c3e50;
+            border: 1px solid rgba(52, 83, 240, 0.2);
+            border-bottom-left-radius: 8px;
+        }
+
+        .message.user .message-content::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            right: -8px;
+            width: 0;
+            height: 0;
+            border-left: 8px solid #35bde1;
+            border-top: 8px solid transparent;
+            border-bottom: 8px solid transparent;
+        }
+
+        .message.bot .message-content::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: -8px;
+            width: 0;
+            height: 0;
+            border-right: 8px solid rgba(255, 255, 255, 0.9);
+            border-top: 8px solid transparent;
+            border-bottom: 8px solid transparent;
         }
 
         .chat-input-container {
-            padding: 20px;
-            background: white;
-            border-top: 1px solid #e1e5e9;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(52, 83, 240, 0.2);
         }
 
         .chat-input-form {
             display: flex;
-            gap: 10px;
+            gap: 15px;
+            align-items: center;
         }
 
         .chat-input {
             flex: 1;
-            padding: 12px 16px;
-            border: 2px solid #e1e5e9;
-            border-radius: 25px;
+            padding: 15px 20px;
+            border: 2px solid rgba(52, 83, 240, 0.3);
+            border-radius: 30px;
             outline: none;
-            font-size: 14px;
-            transition: border-color 0.3s;
+            font-size: 16px;
+            font-family: 'EB Garamond', serif;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.8);
+            color: #2c3e50;
         }
 
         .chat-input:focus {
-            border-color: #667eea;
+            border-color: #3453f0;
+            box-shadow: 0 0 0 3px rgba(52, 83, 240, 0.1);
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        .chat-input::placeholder {
+            color: rgba(44, 62, 80, 0.6);
         }
 
         .send-button {
-            padding: 12px 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #3453f0 0%, #2f80e1 50%, #35bde1 100%);
             color: white;
             border: none;
-            border-radius: 25px;
+            border-radius: 30px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 16px;
+            font-family: 'EB Garamond', serif;
             font-weight: 600;
-            transition: transform 0.2s;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(52, 83, 240, 0.3);
         }
 
         .send-button:hover {
             transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 83, 240, 0.4);
+        }
+
+        .send-button:active {
+            transform: translateY(0);
         }
 
         .send-button:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
+            box-shadow: 0 2px 8px rgba(52, 83, 240, 0.2);
         }
 
         .loading {
             display: none;
             text-align: center;
-            color: #666;
+            color: #3453f0;
             font-style: italic;
-            margin: 10px 0;
+            margin: 15px 0;
+            font-size: 16px;
+            font-family: 'EB Garamond', serif;
+            font-weight: 500;
         }
 
         .welcome-message {
             text-align: center;
-            color: #666;
-            margin: 20px 0;
+            color: #3453f0;
+            margin: 25px 0;
             font-style: italic;
+            font-size: 18px;
+            font-family: 'EB Garamond', serif;
+            font-weight: 400;
+            background: rgba(52, 83, 240, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid rgba(52, 83, 240, 0.2);
         }
 
         @media (max-width: 600px) {
@@ -165,10 +261,14 @@
     </style>
 </head>
 <body>
+    <div id="vanta-background"></div>
+    
     <div class="chat-container">
         <div class="chat-header">
-            <h1>🎓 GT Club Chatbot</h1>
-            <p>Find the perfect club for you at Georgia Tech!</p>
+            <div class="header-content">
+                <h1>🎓 GT Club Chatbot</h1>
+                <p>Find the perfect club for you at Georgia Tech!</p>
+            </div>
         </div>
         
         <div class="chat-messages" id="chatMessages">
@@ -267,6 +367,29 @@
 
         // Focus on input when page loads
         messageInput.focus();
+    </script>
+
+    <!-- Vanta.js Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.fog.min.js"></script>
+    
+    <script>
+        // Initialize Vanta.js fog background with custom blue colors
+        VANTA.FOG({
+            el: "#vanta-background",
+            mouseControls: true,
+            touchControls: true,
+            gyroControls: false,
+            minHeight: 200.00,
+            minWidth: 200.00,
+            highlightColor: 0x3453f0,
+            midtoneColor: 0x2f80e1,
+            lowlightColor: 0x35bde1,
+            baseColor: 0xffebeb,
+            blurFactor: 0.6,
+            zoom: 1,
+            speed: 1
+        });
     </script>
 </body>
 </html>

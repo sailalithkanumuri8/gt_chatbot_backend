@@ -2,10 +2,8 @@
 .venv/
 venv/
 env/
-
 # Environment Variables
 .env
-
 # Python
 __pycache__/
 *.py[cod]
@@ -27,14 +25,12 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-
 # OS
 .DS_Store
 .DS_Store?
@@ -43,10 +39,8 @@ wheels/
 .Trashes
 ehthumbs.db
 Thumbs.db
-
 # Logs
 *.log
-
 # Database
 *.db
 *.sqlite3
