@@ -39,8 +39,8 @@ A simple Flask backend with MongoDB integration for managing club data.
    ```
 
 3. **Test the API**
-   - Get all clubs: `http://localhost:8000/clubs`
-   - Get specific club: `http://localhost:8000/clubs/Finance%20Association`
+   - Get all clubs: `http://localhost:8001/clubs`
+   - Get specific club: `http://localhost:8001/clubs/Finance%20Association`
 
 ## API Endpoints
 

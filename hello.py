@@ -1,21 +1,151 @@
 from flask import Flask, jsonify, request, render_template
 from pymongo import MongoClient
+from functools import wraps
 import pandas as pd
 import os
 from dotenv import load_dotenv
 import google.generativeai as genai
+import jwt
+import bcrypt
+from datetime import datetime, timedelta
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'your-secret-key-change-in-production')
 
-# LIVE CODE TASK 1: Database Connection (5 minutes)
-# TODO: Add database connection code here
+# MongoDB connection
+client = MongoClient(os.getenv('MONGODB_CLIENT'), tlsAllowInvalidCertificates=True)
+db = client["files"]
+collection = db["clubs"]
+users_collection = db['users']  # For authentication
 
+# Configure Gemini API
+genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
 
-# LIVE CODE TASK 2: AI API Setup (3 minutes)
-# TODO: Add AI API configuration here
+# ============= AUTHENTICATION SECTION =============
+
+# WORKSHOP TODO: JWT Verification Decorator (5 minutes)
+def token_required(f):
+    """Decorator to protect routes with JWT authentication"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.headers.get('Authorization')
+        
+        if not token:
+            return jsonify({'error': 'Token is missing'}), 401
+        
+        try:
+            # Remove 'Bearer ' prefix if present
+            if token.startswith('Bearer '):
+                token = token[7:]
+            
+            # TODO: Decode and verify JWT token
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+            current_user = users_collection.find_one({'email': data['email']}, {'_id': 0, 'password': 0})
+            
+            if not current_user:
+                return jsonify({'error': 'User not found'}), 401
+            
+        except jwt.ExpiredSignatureError:
+            return jsonify({'error': 'Token has expired'}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({'error': 'Invalid token'}), 401
+        
+        return f(current_user, *args, **kwargs)
+    
+    return decorated
+
+@app.route('/auth/register', methods=['POST'])
+def register():
+    """Register a new user"""
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        password = data.get('password')
+        name = data.get('name')
+        
+        if not email or not password or not name:
+            return jsonify({'error': 'Email, password, and name are required'}), 400
+        
+        # WORKSHOP TODO: Check if user exists (3 minutes)
+        if users_collection.find_one({'email': email}):
+            return jsonify({'error': 'User already exists'}), 400
+        
+        # WORKSHOP TODO: Hash password (3 minutes)
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+        
+        # WORKSHOP TODO: Create user document (3 minutes)
+        user = {
+            'email': email,
+            'password': hashed_password,
+            'name': name,
+            'created_at': datetime.utcnow(),
+            'favorite_clubs': []
+        }
+        
+        # WORKSHOP TODO: Insert user in our user collection (2 minutes)
+        users_collection.insert_one(user)
+        
+        return jsonify({
+            'success': True,
+            'message': 'User registered successfully',
+            'user': {'email': email, 'name': name}
+        }), 201
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/auth/login', methods=['POST'])
+def login():
+    """Login and get JWT token"""
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        password = data.get('password')
+        
+        if not email or not password:
+            return jsonify({'error': 'Email and password are required'}), 400
+        
+        # WORKSHOP TODO: Find user in database (3 minutes)
+        user = users_collection.find_one({'email': email})
+        
+        if not user:
+            return jsonify({'error': 'Invalid credentials'}), 401
+        
+        # WORKSHOP TODO: Verify password (3 minutes)
+        if not bcrypt.checkpw(password.encode('utf-8'), user['password']):
+            return jsonify({'error': 'Invalid credentials'}), 401
+        
+        # WORKSHOP TODO: Generate JWT token (5 minutes)
+        token = jwt.encode({
+            'email': email,
+            'exp': datetime.utcnow() + timedelta(hours=24)
+        }, app.config['SECRET_KEY'], algorithm='HS256')
+        
+        return jsonify({
+            'success': True,
+            'token': token,
+            'user': {
+                'email': user['email'],
+                'name': user['name']
+            }
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/auth/me', methods=['GET'])
+@token_required
+def get_current_user(current_user):
+    """Get current user profile (protected route example)"""
+    return jsonify({
+        'success': True,
+        'user': current_user
+    }), 200
+
+# ============= CLUB ROUTES =============
 
 @app.route('/clubs', methods=['GET'])
 def get_all_clubs():
@@ -144,6 +274,57 @@ def delete_club(club_name):
             'error': str(e)
         }), 500
 
+# ============= PROTECTED ROUTES (Require Authentication) =============
+
+@app.route('/favorites', methods=['GET'])
+@token_required
+def get_favorites(current_user):
+    """Get user's favorite clubs (protected route)"""
+    return jsonify({
+        'success': True,
+        'favorites': current_user.get('favorite_clubs', [])
+    }), 200
+
+@app.route('/favorites/<club_name>', methods=['POST'])
+@token_required
+def add_favorite(current_user, club_name):
+    """Add club to favorites (protected route)"""
+    try:
+        # WORKSHOP TODO: Update user's favorite clubs (5 minutes)
+        result = users_collection.update_one(
+            {'email': current_user['email']},
+            {'$addToSet': {'favorite_clubs': club_name}}
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': f'Added {club_name} to favorites'
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/favorites/<club_name>', methods=['DELETE'])
+@token_required
+def remove_favorite(current_user, club_name):
+    """Remove club from favorites (protected route)"""
+    try:
+        # WORKSHOP TODO: Remove from favorites array (5 minutes)
+        result = users_collection.update_one(
+            {'email': current_user['email']},
+            {'$pull': {'favorite_clubs': club_name}}
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': f'Removed {club_name} from favorites'
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ============= MAIN ROUTES =============
+
 @app.route('/')
 def index():
     """Serve the main chatbot UI"""
@@ -162,16 +343,37 @@ def chat():
                 'error': 'No message provided'
             }), 400
 
-        # LIVE CODE TASK 3: Data Retrieval for AI Context (5 minutes)
-        # TODO: Get clubs from database and format for AI
-
-
-        # LIVE CODE TASK 4: AI Prompt Engineering (7 minutes)
-        # TODO: Create system prompt with club information
+        # Get all clubs from database for context
+        clubs = list(collection.find({}, {'_id': 0}))
         
+        if clubs:
+            clubs_context = "\n".join([
+                f"Club: {club.get('club_name', 'Unknown')} - {club.get('description', 'No description')} - Majors: {club.get('majors', 'N/A')}"
+                for club in clubs[:20]  # Limit to first 20 clubs for context
+            ])
+        else:
+            clubs_context = "No clubs are currently in the database."
 
-        # LIVE CODE TASK 5: AI API Call (5 minutes)
-        # TODO: Call Gemini API and get response
+        # Create system prompt with club information
+        system_prompt = f"""You are a helpful assistant for Georgia Tech students looking for clubs to join.
+
+Here are some available clubs at Georgia Tech:
+
+{clubs_context}
+
+Please help students find clubs that match their interests, majors, or goals. Be friendly and informative.
+If a student asks about a specific club, provide details about it. If they're looking for clubs in a particular area,
+suggest relevant clubs from the list above."""
+
+        # Initialize Gemini model
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        
+        # Create the full prompt
+        full_prompt = f"{system_prompt}\n\nUser: {user_message}\n\nAssistant:"
+        
+        # Call Gemini API
+        response = model.generate_content(full_prompt)
+        bot_response = response.text
 
         return jsonify({
             'success': True,
@@ -185,4 +387,4 @@ def chat():
         }), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8002)
+    app.run(debug=True, port=8001)

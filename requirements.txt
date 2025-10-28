@@ -1,0 +1,9 @@
+flask
+pymongo
+python-dotenv
+pandas
+google-generativeai
+pyjwt
+bcrypt
+
+
