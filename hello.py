@@ -19,7 +19,7 @@ app.config['SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'your-secret-key-change-i
 client = MongoClient(os.getenv('MONGODB_CLIENT'), tlsAllowInvalidCertificates=True)
 db = client["files"]
 collection = db["clubs"]
-users_collection = db['users']  # For authentication
+users_collection = db['users']
 
 # Configure Gemini API
 genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
@@ -37,13 +37,10 @@ def token_required(f):
             return jsonify({'error': 'Token is missing'}), 401
         
         try:
-            # Remove 'Bearer ' prefix if present
             if token.startswith('Bearer '):
                 token = token[7:]
             
             # TODO: Decode and verify JWT token
-            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
-            current_user = users_collection.find_one({'email': data['email']}, {'_id': 0, 'password': 0})
             
             if not current_user:
                 return jsonify({'error': 'User not found'}), 401
@@ -70,23 +67,12 @@ def register():
             return jsonify({'error': 'Email, password, and name are required'}), 400
         
         # WORKSHOP TODO: Check if user exists (3 minutes)
-        if users_collection.find_one({'email': email}):
-            return jsonify({'error': 'User already exists'}), 400
         
         # WORKSHOP TODO: Hash password (3 minutes)
-        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
         
         # WORKSHOP TODO: Create user document (3 minutes)
-        user = {
-            'email': email,
-            'password': hashed_password,
-            'name': name,
-            'created_at': datetime.utcnow(),
-            'favorite_clubs': []
-        }
         
         # WORKSHOP TODO: Insert user in our user collection (2 minutes)
-        users_collection.insert_one(user)
         
         return jsonify({
             'success': True,
@@ -109,20 +95,13 @@ def login():
             return jsonify({'error': 'Email and password are required'}), 400
         
         # WORKSHOP TODO: Find user in database (3 minutes)
-        user = users_collection.find_one({'email': email})
         
         if not user:
             return jsonify({'error': 'Invalid credentials'}), 401
         
         # WORKSHOP TODO: Verify password (3 minutes)
-        if not bcrypt.checkpw(password.encode('utf-8'), user['password']):
-            return jsonify({'error': 'Invalid credentials'}), 401
         
         # WORKSHOP TODO: Generate JWT token (5 minutes)
-        token = jwt.encode({
-            'email': email,
-            'exp': datetime.utcnow() + timedelta(hours=24)
-        }, app.config['SECRET_KEY'], algorithm='HS256')
         
         return jsonify({
             'success': True,
@@ -291,10 +270,6 @@ def add_favorite(current_user, club_name):
     """Add club to favorites (protected route)"""
     try:
         # WORKSHOP TODO: Update user's favorite clubs (5 minutes)
-        result = users_collection.update_one(
-            {'email': current_user['email']},
-            {'$addToSet': {'favorite_clubs': club_name}}
-        )
         
         return jsonify({
             'success': True,
@@ -310,10 +285,6 @@ def remove_favorite(current_user, club_name):
     """Remove club from favorites (protected route)"""
     try:
         # WORKSHOP TODO: Remove from favorites array (5 minutes)
-        result = users_collection.update_one(
-            {'email': current_user['email']},
-            {'$pull': {'favorite_clubs': club_name}}
-        )
         
         return jsonify({
             'success': True,
