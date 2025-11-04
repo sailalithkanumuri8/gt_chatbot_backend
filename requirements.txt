@@ -5,5 +5,3 @@ pandas
 google-generativeai
 pyjwt
 bcrypt
-
-
