@@ -6,7 +6,6 @@ import os
 from dotenv import load_dotenv
 import google.generativeai as genai
 import jwt
-import bcrypt
 from datetime import datetime, timedelta
 import time, uuid, hashlib   # <-- added for session + memory
 
@@ -368,8 +367,8 @@ def chat():
         # TASK: get a stable user_id and a session_id (use default if missing)
         # history depends on these two keys.
         # SOLUTION (uncomment the two lines below during the demo):
-        # user_id = get_user_id()
-        # session_id = data.get('session_id', '').strip() or get_or_create_default_session(user_id)
+        user_id = get_user_id()
+        session_id = data.get('session_id', '').strip() or get_or_create_default_session(user_id)
 
         # For the starter (no memory yet), keep harmless placeholders:
         user_id = "demo-user"                 # will be replaced by SOLUTION
@@ -381,12 +380,12 @@ def chat():
         # TASK: pull last 8 messages for (user_id, session_id), newest → oldest,
         #       then reverse and join into a readable conversation block.
         # SOLUTION (uncomment this block during the demo):
-        # history = list(messages_collection.find(
-        #     {"user_id": user_id, "session_id": session_id},
-        #     {"_id": 0, "role": 1, "text": 1}
-        # ).sort("ts", -1).limit(8))
-        # history = list(reversed(history))
-        # history_text = "\n".join([f"{m['role'].title()}: {m['text']}" for m in history])
+        history = list(messages_collection.find(
+            {"user_id": user_id, "session_id": session_id},
+            {"_id": 0, "role": 1, "text": 1}
+        ).sort("ts", -1).limit(8))
+        history = list(reversed(history))
+        history_text = "\n".join([f"{m['role'].title()}: {m['text']}" for m in history])
 
         # Starter fallback (no memory yet):
         history_text = ""                     # will be replaced by SOLUTION
@@ -435,20 +434,20 @@ Please help students find clubs that match their interests, majors, or goals."""
         # STEP 8 — persist both turns + touch session timestamp (TASK)
         # TASK: insert two docs into messages_collection and update sessions_collection.updated_at
         # SOLUTION (uncomment this block during the demo):
-        # now = time.time()
-        # messages_collection.insert_one({
-        #     "user_id": user_id, "session_id": session_id, "role": "user",
-        #     "text": user_message, "ts": now
-        # })
-        # messages_collection.insert_one({
-        #     "user_id": user_id, "session_id": session_id, "role": "assistant",
-        #     "text": bot_response, "ts": now + 0.001
-        # })
-        # sessions_collection.update_one(
-        #     {"user_id": user_id, "session_id": session_id},
-        #     {"$set": {"updated_at": now}},
-        #     upsert=True
-        # )
+        now = time.time()
+        messages_collection.insert_one({
+            "user_id": user_id, "session_id": session_id, "role": "user",
+            "text": user_message, "ts": now
+        })
+        messages_collection.insert_one({
+            "user_id": user_id, "session_id": session_id, "role": "assistant",
+            "text": bot_response, "ts": now + 0.001
+        })
+        sessions_collection.update_one(
+            {"user_id": user_id, "session_id": session_id},
+            {"$set": {"updated_at": now}},
+            upsert=True
+        )
         # ------------------------------------------------------------------
 
         # STEP 9 — return the response (always include session_id once enabled)
@@ -463,6 +462,144 @@ Please help students find clubs that match their interests, majors, or goals."""
             'success': False,
             'error': f'Unexpected error: {str(e)}'
         }), 500
+
+# ------------------- API ROUTES -------------------
+@app.route("/api/members_by_department", methods=["GET"])
+def api_members_by_department():
+    """
+    Returns JSON list of department membership totals:
+    [
+      {"department": "CS", "members": 120},
+      {"department": "EE", "members": 40},
+      ...
+    ]
+    """
+    df = get_clubs_dataframe()
+    if df.empty:
+        return jsonify({"error": "no data available"}), 404
+
+    # Normalize members column to integer
+    if "members" in df.columns:
+        df["members"] = pd.to_numeric(df["members"], errors="coerce").fillna(0).astype(int)
+    else:
+        df["members"] = 0
+
+    grouped = df.groupby("department", dropna=False)["members"].sum().reset_index()
+    result = [
+        {
+            "department": (row["department"] if pd.notnull(row["department"]) else "Unknown"),
+            "members": int(row["members"])
+        }
+        for _, row in grouped.iterrows()
+    ]
+    return jsonify(result)
+
+
+@app.route("/api/events_summary", methods=["GET"])
+def api_events_summary():
+    """
+    Returns JSON list of club attendance summary:
+    [
+      {"club_name": "Big Data Big Impact", "events_2024": 10, "event_attendance_2024": 480},
+      ...
+    ]
+    """
+    df = get_clubs_dataframe()
+    if df.empty:
+        return jsonify({"error": "no data available"}), 404
+
+    # Ensure numeric columns exist and are integers
+    for col in ["events_2024", "event_attendance_2024"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
+        else:
+            df[col] = 0
+
+    rows = df[["club_name", "events_2024", "event_attendance_2024"]].to_dict(orient="records")
+    return jsonify(rows)
+
+
+# ------------------- DASHBOARD HTML -------------------
+# This HTML is embedded in the Python file and served via render_template_string
+DASHBOARD_HTML = """
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>GT Club Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 16px; }
+    canvas { max-width: 900px; margin-bottom: 28px; }
+  </style>
+</head>
+<body>
+  <h1>GT Club Dashboard</h1>
+  <p>This dashboard reads data from the Flask API endpoints and renders charts with Chart.js. It is intended for review and reference.</p>
+
+  <h3>Members by Department</h3>
+  <canvas id="barChart"></canvas>
+
+  <h3>Event attendance per club</h3>
+  <canvas id="lineChart"></canvas>
+
+<script>
+async function fetchJSON(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Fetch failed: ' + res.status);
+  return res.json();
+}
+
+async function draw() {
+  try {
+    const depData = await fetchJSON('/api/members_by_department');
+    const labels = depData.map(d => d.department);
+    const values = depData.map(d => d.members);
+
+    new Chart(document.getElementById('barChart'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Members',
+          data: values,
+          borderWidth: 1
+        }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    const rows = await fetchJSON('/api/events_summary');
+    const clubs = rows.map(r => r.club_name);
+    const attendance = rows.map(r => r.event_attendance_2024);
+
+    new Chart(document.getElementById('lineChart'), {
+      type: 'line',
+      data: {
+        labels: clubs,
+        datasets: [{ label: 'Attendance 2024', data: attendance, fill: false, tension: 0.2 }]
+      },
+      options: { responsive: true }
+    });
+  } catch (err) {
+    document.body.insertAdjacentHTML('beforeend', '<p style="color:darkred">Error loading data: ' + err.message + '</p>');
+  }
+}
+
+draw();
+</script>
+</body>
+</html>
+"""
+
+
+@app.route("/dashboard", methods=["GET"])
+def dashboard():
+    """
+    Serves the embedded dashboard HTML. No template files are required.
+    """
+    return render_template_string(DASHBOARD_HTML)
+# ------------------- END OF ADDITIONS -------------------
 
 
 if __name__ == '__main__':
